@@ -209,8 +209,11 @@
 			qcom,rparasitic-uohm = <100000>;
 			qcom,bms-psy-name = "bms";
 
-			qcom,float-voltage-comp = <16>;
-			qcom,fastchg-current-comp = <900>;
+			qcom,thermal-mitigation = <1500 700 600 0>;
+			qcom,parallel-usb-min-current-ma = <1400>;
+			qcom,parallel-usb-9v-min-current-ma = <900>;
+			qcom,parallel-allowed-lowering-ma = <500>;
+			qcom,autoadjust-vfloat;
 			qcom,pmic-revid = <&pmi8994_revid>;
 
 			qcom,chgr@1000 {
@@ -320,8 +323,6 @@
 			qcom,thermal-coefficients = [dd 85 63 4a e6 35];
 			qcom,fg-vbat-estimate-diff-mv = <100>;
 			qcom,cycle-counter-en;
-			qcom,cycle-counter-low-soc = <15>;
-			qcom,cycle-counter-high-soc = <85>;
 			qcom,capacity-learning-on;
 			qcom,pmic-revid = <&pmi8994_revid>;
 
@@ -542,7 +543,7 @@
 			qcom,fs-curr-ua = <20000>;
 			qcom,en-cabc;
 			qcom,en-phase-stag;
-			qcom,led-strings-list = [00 01];
+			qcom,led-strings-list = [00 01 02 03];
 			qcom,en-ext-pfet-sc-pro;
 		};
 
@@ -703,8 +704,14 @@
 				qcom,max-current = <200>;
 				qcom,id = <0>;
 				qcom,current = <120>;
-				boost-supply = <&pmi8994_boostbypass>;
-				boost-voltage-max = <3600000>;
+				reg0 {
+					regulator-name =
+						"pmi8994_boostbypass";
+					max-voltage = <3600000>;
+				};
+				reg1 {
+					regulator-name = "pon_spare_reg";
+				};
 			};
 
 			pmi8994_torch1: qcom,torch_1 {
@@ -715,8 +722,14 @@
 				qcom,max-current = <200>;
 				qcom,id = <1>;
 				qcom,current = <120>;
-				boost-supply = <&pmi8994_boostbypass>;
-				boost-voltage-max = <3600000>;
+				reg0 {
+					regulator-name =
+						"pmi8994_boostbypass";
+					max-voltage = <3600000>;
+				};
+				reg1 {
+					regulator-name = "pon_spare_reg";
+				};
 			};
 		};
 	};

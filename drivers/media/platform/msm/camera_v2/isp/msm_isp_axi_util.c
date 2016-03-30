@@ -80,7 +80,8 @@ int msm_isp_validate_axi_request(struct msm_vfe_axi_shared_data *axi_data,
 {
 	int rc = -1, i;
 	struct msm_vfe_axi_stream *stream_info = NULL;
-	if (HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle) < VFE_AXI_SRC_MAX) {
+	if (HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle) <
+		VFE_AXI_SRC_MAX) {
 		stream_info = &axi_data->stream_info[
 			HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle)];
 	} else {
@@ -691,7 +692,8 @@ void msm_isp_calculate_framedrop(
 {
 	uint32_t framedrop_period = 0;
 	struct msm_vfe_axi_stream *stream_info = NULL;
-	if (HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle) < VFE_AXI_SRC_MAX) {
+	if (HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle) <
+		VFE_AXI_SRC_MAX) {
 		stream_info = &axi_data->stream_info[
 			HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle)];
 	} else {
@@ -960,11 +962,12 @@ static int  msm_isp_axi_stream_enable_cfg(
 
 	if (stream_idx >= MAX_NUM_STREAM) {
 		pr_err("%s: Invalid stream_idx", __func__);
-		return -1;
+
+		goto error;
 	}
 
 	if (stream_info->state == INACTIVE)
-		return -1;
+		goto error;
 
 	if (stream_info->state == START_PENDING ||
 		stream_info->state == RESUME_PENDING) {
@@ -981,19 +984,35 @@ static int  msm_isp_axi_stream_enable_cfg(
 			vfe_dev->is_split && vfe_dev->pdev->id == ISP_VFE1 &&
 			dual_vfe_sync) {
 			dual_vfe_res = vfe_dev->dual_vfe_res;
-			RETURN_IF_DUAL_RES_NULL(dual_vfe_res);
+
+			if (!dual_vfe_res->vfe_base[ISP_VFE0] ||
+				!dual_vfe_res->axi_data[ISP_VFE0] ||
+				!dual_vfe_res->vfe_base[ISP_VFE1] ||
+				!dual_vfe_res->axi_data[ISP_VFE1]) {
+				pr_err("%s:%d failed vfe0 %p %p vfe %p %p\n",
+					__func__, __LINE__,
+					dual_vfe_res->vfe_base[ISP_VFE0],
+					dual_vfe_res->axi_data[ISP_VFE0],
+					dual_vfe_res->vfe_base[ISP_VFE1],
+					dual_vfe_res->axi_data[ISP_VFE1]);
+				goto error;
+			}
 			for (vfe_id = 0; vfe_id < MAX_VFE; vfe_id++) {
 				vfe_dev->hw_info->vfe_ops.axi_ops.
-					enable_wm(dual_vfe_res->vfe_base[vfe_id],
+					enable_wm(
+					dual_vfe_res->vfe_base[vfe_id],
 					dual_vfe_res->axi_data[vfe_id]->
-					stream_info[stream_idx].wm[i], enable_wm);
+					stream_info[stream_idx].wm[i],
+					enable_wm);
+
 			}
 		} else if (!vfe_dev->is_split ||
 			(stream_info->stream_src >= RDI_INTF_0 &&
 			stream_info->stream_src <= RDI_INTF_2) ||
 			!dual_vfe_sync) {
 			vfe_dev->hw_info->vfe_ops.axi_ops.
-				enable_wm(vfe_dev->vfe_base, stream_info->wm[i], enable_wm);
+			enable_wm(vfe_dev->vfe_base, stream_info->wm[i],
+					enable_wm);
 		}
 		if (!enable_wm) {
 			/* Issue a reg update for Raw Snapshot Case
@@ -1017,6 +1036,8 @@ static int  msm_isp_axi_stream_enable_cfg(
 	else if (stream_info->state == STOP_PENDING)
 		axi_data->num_active_stream--;
 	return 0;
+error:
+	return -EINVAL;
 }
 
 void msm_isp_axi_stream_update(struct vfe_device *vfe_dev,
@@ -1213,8 +1234,8 @@ int msm_isp_print_ping_pong_address(struct vfe_device *vfe_dev)
 				}
 				pr_err("%s: stream_id %x ping-pong %d plane %d start_addr %lu addr_offset %x len %lx stride %d scanline %d\n",
 					__func__, stream_info->stream_id,
-					pingpong_bit, i,
-					(unsigned long)buf->mapped_info[i].paddr,
+					pingpong_bit, i, (unsigned long)
+					buf->mapped_info[i].paddr,
 					stream_info->
 						plane_cfg[i].plane_addr_offset,
 					buf->mapped_info[i].len,
@@ -1295,7 +1316,21 @@ static int msm_isp_cfg_ping_pong_address(struct vfe_device *vfe_dev,
 			vfe_dev->is_split &&
 			(buf_cnt >= MAX_VFE) && sync_dual_vfe) {
 			dual_vfe_res = vfe_dev->dual_vfe_res;
-			RETURN_IF_DUAL_RES_NULL(dual_vfe_res);
+
+			if (!dual_vfe_res->vfe_base[ISP_VFE0] ||
+				!dual_vfe_res->axi_data[ISP_VFE0] ||
+				!dual_vfe_res->vfe_base[ISP_VFE1] ||
+				!dual_vfe_res->axi_data[ISP_VFE1]) {
+				pr_err("%s:%d failed vfe0 %p %p vfe %p %p\n",
+					__func__, __LINE__,
+					dual_vfe_res->vfe_base[ISP_VFE0],
+					dual_vfe_res->axi_data[ISP_VFE0],
+					dual_vfe_res->vfe_base[ISP_VFE1],
+					dual_vfe_res->axi_data[ISP_VFE1]);
+				rc = -EINVAL;
+				goto buf_error;
+			}
+
 			for (vfe_id = 0; vfe_id < MAX_VFE; vfe_id++) {
 				vfe_dev->hw_info->vfe_ops.axi_ops.
 					update_ping_pong_addr(
@@ -2725,7 +2760,9 @@ void msm_isp_axi_disable_all_wm(struct vfe_device *vfe_dev)
 			continue;
 
 		for (j = 0; j < stream_info->num_planes; j++)
-			vfe_dev->hw_info->vfe_ops.axi_ops.enable_wm(vfe_dev->vfe_base,
+
+			vfe_dev->hw_info->vfe_ops.axi_ops.enable_wm(
+				vfe_dev->vfe_base,
 				stream_info->wm[j], 0);
 	}
 }
