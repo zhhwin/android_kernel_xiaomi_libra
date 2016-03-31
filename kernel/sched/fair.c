@@ -1798,12 +1798,7 @@ static unsigned int power_cost(u64 task_load, int cpu)
 	cur_freq = rq->cur_freq;
 	task_freq = max(cur_freq, task_freq);
 
-	for (; i < end; i++) {
-		if (task_load <= ptr->map[i].demand &&
-		    ptr->map[i].freq >= rq->cur_freq)
-			return *(ptr->map[i].power_cost);
-	}
-	return *(ptr->map[i - 1].power_cost);
+	return power_cost_at_freq(cpu, task_freq);
 }
 
 static int best_small_task_cpu(struct task_struct *p, int sync)
